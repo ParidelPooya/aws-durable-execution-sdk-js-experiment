@@ -1,0 +1,24 @@
+{
+  "name": "@aws/durable-browser-testing",
+  "version": "1.0.0",
+  "description": "Browser-compatible testing utilities for AWS Durable Execution SDK",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@aws/durable-execution-sdk-js": "file:../aws-durable-execution-sdk-js"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,4 +1,3 @@
-import { AsyncLocalStorage } from "async_hooks";
 import { TerminationManager } from "../../termination-manager/termination-manager";
 import { TerminationReason } from "../../termination-manager/types";
 import { DurableExecutionMode } from "../../types";
@@ -10,10 +9,21 @@ interface ContextInfo {
   durableExecutionMode?: DurableExecutionMode;
 }
 
-const asyncLocalStorage = new AsyncLocalStorage<ContextInfo>();
+// Try to import AsyncLocalStorage, fallback to null if not available (browser environment)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let asyncLocalStorage: any = null;
+
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const AsyncLocalStorageClass = require("async_hooks").AsyncLocalStorage;
+  asyncLocalStorage = new AsyncLocalStorageClass();
+} catch (_error) {
+  // AsyncLocalStorage not available (browser environment)
+  asyncLocalStorage = null;
+}
 
 export const getActiveContext = (): ContextInfo | undefined => {
-  return asyncLocalStorage.getStore();
+  return asyncLocalStorage?.getStore();
 };
 
 export const runWithContext = <T>(
@@ -23,10 +33,14 @@ export const runWithContext = <T>(
   attempt?: number,
   durableExecutionMode?: DurableExecutionMode,
 ): T => {
-  return asyncLocalStorage.run(
-    { contextId, parentId, attempt, durableExecutionMode },
-    fn,
-  );
+  if (asyncLocalStorage) {
+    return asyncLocalStorage.run(
+      { contextId, parentId, attempt, durableExecutionMode },
+      fn,
+    );
+  }
+  // Fallback: just run the function without context tracking
+  return fn();
 };
 
 export const validateContextUsage = (
@@ -34,6 +48,11 @@ export const validateContextUsage = (
   operationName: string,
   terminationManager: TerminationManager,
 ): void => {
+  // Skip validation if AsyncLocalStorage is not available
+  if (!asyncLocalStorage) {
+    return;
+  }
+
   const contextId = operationContextId || "root";
   const activeContext = getActiveContext();
 

@@ -1,0 +1,11 @@
+/node_modules
+/build
+/dist
+/dist-cjs
+/dist-types
+/coverage
+.husky
+*.iml
+*.tsbuildinfo
+
+api-extractor
