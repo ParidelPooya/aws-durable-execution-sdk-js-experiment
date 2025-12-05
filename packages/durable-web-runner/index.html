@@ -1,39 +1,156 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Durable Execution Web Runner</title>
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AWS Durable Execution SDK - Browser Runner</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .editor { width: 100%; height: 300px; font-family: monospace; }
-        .output { background: #f5f5f5; padding: 15px; margin-top: 10px; white-space: pre-wrap; }
-        .error { background: #ffe6e6; color: #d00; }
-        .success { background: #e6ffe6; color: #060; }
-        button { padding: 10px 20px; margin: 10px 0; }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+        height: 100vh;
+        overflow: hidden;
+      }
+      
+      .container {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      
+      .content {
+        display: flex;
+        flex: 1;
+        height: calc(100vh - 50px);
+      }
+      
+      .editor-panel {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+      
+      .editor-header {
+        background: #2d2d30;
+        color: #cccccc;
+        padding: 8px 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #3e3e42;
+        height: 50px;
+      }
+      
+      .editor-container {
+        flex: 1;
+        position: relative;
+      }
+      
+      .output-panel {
+        width: 400px;
+        border-left: 1px solid #3e3e42;
+        display: flex;
+        flex-direction: column;
+        background: #1e1e1e;
+      }
+      
+      .output-header {
+        background: #2d2d30;
+        color: #cccccc;
+        padding: 8px 16px;
+        border-bottom: 1px solid #3e3e42;
+        font-weight: 600;
+        height: 50px;
+        display: flex;
+        align-items: center;
+      }
+      
+      .output-content {
+        flex: 1;
+        padding: 16px;
+        overflow-y: auto;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 12px;
+        line-height: 1.4;
+        background: #1e1e1e;
+        color: #d4d4d4;
+      }
+      
+      .run-button {
+        background: #0e639c;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 3px;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 13px;
+        transition: background-color 0.2s;
+      }
+      
+      .run-button:hover {
+        background: #1177bb;
+      }
+      
+      .run-button:disabled {
+        background: #666;
+        cursor: not-allowed;
+      }
+      
+      .status {
+        margin-left: 12px;
+        padding: 4px 8px;
+        border-radius: 3px;
+        font-size: 11px;
+        font-weight: 500;
+      }
+      
+      .status.success {
+        background: #1e3a1e;
+        color: #4caf50;
+        border: 1px solid #2e5d2e;
+      }
+      
+      .status.error {
+        background: #3a1e1e;
+        color: #f44336;
+        border: 1px solid #5d2e2e;
+      }
+      
+      .status.running {
+        background: #3a3a1e;
+        color: #ff9800;
+        border: 1px solid #5d5d2e;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <h1>Durable Execution Web Runner</h1>
-        <textarea id="codeInput" class="editor" placeholder="Enter your durable function code here...">
-export const handler = withDurableExecution(
-  async (event, context) => {
-    const result = await context.step(async () => {
-      return "Hello from durable execution!";
-    });
-    
-    await context.wait({ seconds: 1 });
-    
-    return result;
-  }
-);
-        </textarea>
-        <br>
-        <button onclick="runCode()">Run Code</button>
-        <div id="output" class="output"></div>
+      <div class="content">
+        <div class="editor-panel">
+          <div class="editor-header">
+            <span>main.ts</span>
+            <div>
+              <button id="runButton" class="run-button">▶ Run</button>
+              <span id="status" class="status"></span>
+            </div>
+          </div>
+          <div id="editor" class="editor-container"></div>
+        </div>
+        
+        <div class="output-panel">
+          <div class="output-header">Console</div>
+          <div id="output" class="output-content">Ready to run durable execution code...</div>
+        </div>
+      </div>
     </div>
+
     <script type="module" src="/src/main.ts"></script>
-</body>
+  </body>
 </html>

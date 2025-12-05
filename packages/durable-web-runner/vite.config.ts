@@ -35,5 +35,9 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ["@aws/durable-execution-sdk-js"],
+    exclude: ["monaco-editor"],
+  },
+  worker: {
+    format: "es",
   },
 });
