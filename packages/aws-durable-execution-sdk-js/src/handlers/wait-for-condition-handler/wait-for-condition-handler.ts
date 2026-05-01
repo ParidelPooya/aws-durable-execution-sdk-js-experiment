@@ -17,7 +17,7 @@ import {
 } from "@aws-sdk/client-lambda";
 import { log } from "../../utils/logger/logger";
 import { Checkpoint } from "../../utils/checkpoint/checkpoint-helper";
-import { defaultSerdes } from "../../utils/serdes/serdes";
+import { defaultSerdes, AnySerdes } from "../../utils/serdes/serdes";
 import {
   safeSerialize,
   safeDeserialize,
@@ -36,6 +36,8 @@ export const createWaitForConditionHandler = <Logger extends DurableLogger>(
   createStepId: () => string,
   logger: Logger,
   parentId: string | undefined,
+
+  getDefaultSerdes?: () => AnySerdes,
 ) => {
   return <T>(
     nameOrCheck: string | undefined | WaitForConditionCheckFunc<T, Logger>,
@@ -64,7 +66,8 @@ export const createWaitForConditionHandler = <Logger extends DurableLogger>(
     }
 
     const stepId = createStepId();
-    const serdes = config.serdes || defaultSerdes;
+    const serdes =
+      config.serdes || (getDefaultSerdes ? getDefaultSerdes() : defaultSerdes);
 
     const phase1Promise = (async (): Promise<T> => {
       let stepData = context.getStepData(stepId);

@@ -35,7 +35,10 @@ import { createInvokeHandler } from "../../handlers/invoke-handler/invoke-handle
 import { createRunInChildContextHandler } from "../../handlers/run-in-child-context-handler/run-in-child-context-handler";
 import { createWaitHandler } from "../../handlers/wait-handler/wait-handler";
 import { createWaitForConditionHandler } from "../../handlers/wait-for-condition-handler/wait-for-condition-handler";
-import { createCallback as createCallbackFactory } from "../../handlers/callback-handler/callback";
+import {
+  createCallback as createCallbackFactory,
+  createPassThroughSerdes,
+} from "../../handlers/callback-handler/callback";
 import { createWaitForCallbackHandler } from "../../handlers/wait-for-callback-handler/wait-for-callback-handler";
 import { createMapHandler } from "../../handlers/map-handler/map-handler";
 import { createParallelHandler } from "../../handlers/parallel-handler/parallel-handler";
@@ -53,6 +56,12 @@ import {
   DurableLoggingContext,
 } from "../../types/durable-logger";
 import { hashId } from "../../utils/step-id-utils/step-id-utils";
+import {
+  SerdesConfig,
+  defaultSerdes,
+  AnySerdes,
+  AnySerdesDeserializer,
+} from "../../utils/serdes/serdes";
 
 export interface DurableExecution {
   checkpointManager: CheckpointManager;
@@ -60,9 +69,9 @@ export interface DurableExecution {
   setTerminating(): void;
 }
 
-export class DurableContextImpl<Logger extends DurableLogger>
-  implements DurableContext<Logger>
-{
+export class DurableContextImpl<
+  Logger extends DurableLogger,
+> implements DurableContext<Logger> {
   private _stepPrefix?: string;
   private _stepCounter: number = 0;
   private durableLogger: Logger;
@@ -72,6 +81,12 @@ export class DurableContextImpl<Logger extends DurableLogger>
   private _parentId?: string;
   private modeManagement: ModeManagement;
   private durableExecution: DurableExecution;
+
+  private _defaultSerdes: AnySerdes = defaultSerdes;
+
+  private _defaultCallbackDeserializer: AnySerdesDeserializer =
+    createPassThroughSerdes();
+  private _customCallbackDeserializerSet: boolean = false;
 
   public logger: DurableContextLogger<Logger>;
   public readonly executionContext: {
@@ -282,6 +297,7 @@ export class DurableContextImpl<Logger extends DurableLogger>
         this.createStepId.bind(this),
         this.durableLogger,
         this._parentId,
+        () => this._defaultSerdes,
       );
 
       return stepHandler(nameOrFn, fnOrOptions, maybeOptions);
@@ -306,6 +322,7 @@ export class DurableContextImpl<Logger extends DurableLogger>
         this.createStepId.bind(this),
         this._parentId,
         this.checkAndUpdateReplayMode.bind(this),
+        () => this._defaultSerdes,
       );
       return invokeHandler<I, O>(
         ...([
@@ -344,8 +361,8 @@ export class DurableContextImpl<Logger extends DurableLogger>
           stepPrefix,
           _checkpointToken,
           parentId,
-        ) =>
-          createDurableContext(
+        ) => {
+          const childCtx = createDurableContext(
             executionContext,
             parentContext,
             durableExecutionMode,
@@ -353,8 +370,18 @@ export class DurableContextImpl<Logger extends DurableLogger>
             stepPrefix,
             this.durableExecution,
             parentId,
-          ),
+          );
+          // Propagate serdes config to child context
+          childCtx.configureSerdes({
+            defaultSerdes: this._defaultSerdes,
+            ...(this._customCallbackDeserializerSet && {
+              defaultCallbackDeserializer: this._defaultCallbackDeserializer,
+            }),
+          });
+          return childCtx;
+        },
         this._parentId,
+        () => this._defaultSerdes,
       );
       return blockHandler(nameOrFn, fnOrOptions, maybeOptions);
     });
@@ -411,6 +438,16 @@ export class DurableContextImpl<Logger extends DurableLogger>
     }
   }
 
+  configureSerdes(config: SerdesConfig): void {
+    if (config.defaultSerdes !== undefined) {
+      this._defaultSerdes = config.defaultSerdes;
+    }
+    if (config.defaultCallbackDeserializer !== undefined) {
+      this._defaultCallbackDeserializer = config.defaultCallbackDeserializer;
+      this._customCallbackDeserializerSet = true;
+    }
+  }
+
   createCallback<T>(
     nameOrConfig?: string | CreateCallbackConfig<T>,
     maybeConfig?: CreateCallbackConfig<T>,
@@ -427,6 +464,7 @@ export class DurableContextImpl<Logger extends DurableLogger>
         this.createStepId.bind(this),
         this.checkAndUpdateReplayMode.bind(this),
         this._parentId,
+        () => this._defaultCallbackDeserializer,
       );
       return callbackFactory(nameOrConfig, maybeConfig);
     });
@@ -449,6 +487,12 @@ export class DurableContextImpl<Logger extends DurableLogger>
         this._executionContext,
         this.getNextStepId.bind(this),
         this.runInChildContext.bind(this),
+        // Only pass the getter when the user has explicitly configured a custom
+        // deserializer. The default is createPassThroughSerdes() which matches
+        // the original behavior, so no injection is needed in that case.
+        this._customCallbackDeserializerSet
+          ? () => this._defaultCallbackDeserializer
+          : undefined,
       );
       return waitForCallbackHandler(
         nameOrSubmitter!,
@@ -477,6 +521,7 @@ export class DurableContextImpl<Logger extends DurableLogger>
         this.createStepId.bind(this),
         this.durableLogger,
         this._parentId,
+        () => this._defaultSerdes,
       );
 
       return typeof nameOrCheckFunc === "string" ||
@@ -564,6 +609,7 @@ export class DurableContextImpl<Logger extends DurableLogger>
         this._executionContext,
         this.runInChildContext.bind(this),
         this.skipNextOperation.bind(this),
+        () => this._defaultSerdes,
       );
       const promise = concurrentExecutionHandler(
         nameOrItems,

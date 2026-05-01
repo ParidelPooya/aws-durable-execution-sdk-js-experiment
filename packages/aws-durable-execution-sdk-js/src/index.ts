@@ -54,7 +54,15 @@ export {
   createClassSerdesWithDates,
   Serdes,
   SerdesContext,
+  SerdesConfig,
+  AnySerdes,
+  AnySerdesDeserializer,
 } from "./utils/serdes/serdes";
+export {
+  createFileSystemSerdes,
+  FileSystemSerdesMode,
+  FileSystemSerdesConfig,
+} from "./utils/serdes/filesystem-serdes";
 export { DurableExecutionApiClient } from "./durable-execution-api-client/durable-execution-api-client";
 export {
   createWaitStrategy,
